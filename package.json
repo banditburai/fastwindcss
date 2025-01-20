@@ -44,7 +44,8 @@
     "bench": "vitest bench",
     "version-packages": "node ./scripts/version-packages.mjs",
     "vite": "pnpm run --filter=vite-playground dev",
-    "nextjs": "pnpm run --filter=nextjs-playground dev"
+    "nextjs": "pnpm run --filter=nextjs-playground dev",
+    "setup-plugins": "pnpm run --filter=@tailwindcss/standalone setup-plugins"
   },
   "license": "MIT",
   "devDependencies": {
