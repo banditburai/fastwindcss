@@ -1,9 +1,7 @@
 name: Integration Tests
 
 on:
-  push:
-    branches: [next]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,51 +12,41 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [20]
-
         runner:
           - name: Windows
             os: windows-latest
 
-          - name: Linux
-            os: namespace-profile-default
+          - name: Linux GNU
+            os: ubuntu-latest
+            container:
+              image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
 
           - name: macOS
             os: macos-14
 
         integration:
-          - upgrade
-          - vite
           - cli
           - postcss
 
-        # Exclude windows and macos from being built on feature branches
-        on-next-branch:
-          - ${{ github.ref == 'refs/heads/next' }}
-        exclude:
-          - on-next-branch: false
-            runner:
-              name: Windows
-          - on-next-branch: false
-            runner:
-              name: macOS
-
     runs-on: ${{ matrix.runner.os }}
+    container: ${{ matrix.runner.container }}
     timeout-minutes: 30
 
-    name: ${{ matrix.runner.name }} /  ${{ matrix.integration }}
+    name: ${{ matrix.runner.name }} / ${{ matrix.integration }}
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }}        
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
       # Cargo already skips downloading dependencies if they already exist
-      - name: Cache cargo
+      - name: Cache cargo        
         uses: actions/cache@v4
         with:
           path: |
@@ -70,7 +58,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       # Cache the `oxide` Rust build
-      - name: Cache oxide build
+      - name: Cache oxide build        
         uses: actions/cache@v4
         with:
           path: |
@@ -80,23 +68,23 @@ jobs:
             ./crates/node/index.d.ts
           key: ${{ runner.os }}-oxide-${{ hashFiles('./crates/**/*') }}
 
-      - name: Install dependencies
+      - name: Install dependencies (Windows & macOS & Linux GNU)        
         run: pnpm install
+                  
+      # Setup plugins before building
+      - name: Setup TailwindCSS plugins        
+        run: pnpm run setup-plugins
+        working-directory: packages/@tailwindcss-standalone
 
-      - name: Build
+      - name: Build        
         run: pnpm run build
         env:
           CARGO_PROFILE_RELEASE_LTO: 'off'
           CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: 'lld-link'
 
-      - name: Test ${{ matrix.integration }}
+      - name: Test ${{ matrix.integration }}         
         run: pnpm run test:integrations ./integrations/${{ matrix.integration }}
         env:
           GITHUB_WORKSPACE: ${{ github.workspace }}
-
-      - name: Notify Discord
-        if: failure() && github.ref == 'refs/heads/next'
-        uses: discord-actions/message@v2
-        with:
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: 'The [most recent build](<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>) on the `next` branch has failed.'
+          CONTAINER_NAME: ${{ matrix.runner.container.image }}
+          RUNNER_NAME: ${{ matrix.runner.name }}

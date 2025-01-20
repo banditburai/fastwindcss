@@ -1,19 +1,8 @@
 import os from 'node:os'
 import path from 'node:path'
-import { candidate, css, html, json, test } from '../utils'
+import { candidate, css, html, json, test, getStandaloneBinary } from '../utils'
 
-const STANDALONE_BINARY = (() => {
-  switch (os.platform()) {
-    case 'win32':
-      return 'tailwindcss-windows-x64.exe'
-    case 'darwin':
-      return os.arch() === 'x64' ? 'tailwindcss-macos-x64' : 'tailwindcss-macos-arm64'
-    case 'linux':
-      return os.arch() === 'x64' ? 'tailwindcss-linux-x64' : 'tailwindcss-linux-arm64'
-    default:
-      throw new Error(`Unsupported platform: ${os.platform()} ${os.arch()}`)
-  }
-})()
+const STANDALONE_BINARY = getStandaloneBinary()
 
 test(
   'includes first-party plugins',

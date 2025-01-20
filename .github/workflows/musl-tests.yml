@@ -1,0 +1,94 @@
+name: MUSL Integration Tests
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  musl-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        binary:
+          - name: Linux MUSL x64
+            artifact: tailwindcss-linux-x64-musl
+            platform: linux/amd64
+          - name: Linux MUSL ARM64
+            artifact: tailwindcss-linux-arm64-musl
+            platform: linux/arm64
+
+    runs-on: ubuntu-latest
+    name: ${{ matrix.binary.name }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Download and verify MUSL binary
+        run: |
+          # Get and download binary from latest release
+          RELEASE_URL=$(curl -s https://api.github.com/repos/banditburai/fastwindcss/releases/latest | \
+            grep "browser_download_url.*${{ matrix.binary.artifact }}" | cut -d '"' -f 4)
+          curl -L -o tailwindcss $RELEASE_URL
+          chmod +x tailwindcss
+      
+      - name: Test binary in Alpine
+        run: |
+          # Setup QEMU for ARM64 emulation if needed
+          if [ "${{ matrix.binary.platform }}" = "linux/arm64" ]; then
+            docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          fi
+          
+          # Test in Alpine with build tools
+          docker run --rm -v $PWD:/workspace -w /workspace \
+            --platform=${{ matrix.binary.platform }} alpine:latest \
+            sh -c "
+              apk add --no-cache build-base libstdc++ libgcc
+              
+              echo '=== Testing ${{ matrix.binary.name }} ==='
+              chmod +x tailwindcss
+              
+              echo '=== Binary Info ==='
+              file tailwindcss
+              
+              echo '=== Dependencies ==='
+              ldd tailwindcss || true
+              
+              echo '=== Version with Debug Info ==='
+              RUST_BACKTRACE=full RUST_LOG=debug ./tailwindcss --version | head -n 20
+              
+              echo '=== Testing DaisyUI Integration ==='
+              # Create test directory and files
+              mkdir -p test && cd test
+              echo '@import \"tailwindcss\"; @plugin \"daisyui\";' > input.css
+              echo '<button class=\"btn btn-primary\">Test</button>' > index.html
+              
+              echo '=== Running Tailwind with Debug ==='
+              RUST_BACKTRACE=full RUST_LOG=debug ../tailwindcss -i input.css -o output.css
+              
+              echo '=== First 25 lines of Output CSS ==='
+              head -n 25 output.css
+              
+              echo '=== Searching for DaisyUI Classes ==='
+              echo 'btn-primary appears in these lines:'
+              grep -n 'btn-primary' output.css | head -n 5
+              
+              if ! grep -q 'btn-primary' output.css; then
+                echo 'Error: DaisyUI classes not found in output'
+                exit 1
+              fi
+              
+              echo '=== Success: DaisyUI integration verified ==='
+            "
+
+      # Upload test artifacts if the tests fail           
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-${{ matrix.binary.name }}
+          path: |
+            ./test/*.css
+            ./test/*.html

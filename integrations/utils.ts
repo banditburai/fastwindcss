@@ -6,6 +6,7 @@ import { platform, tmpdir } from 'node:os'
 import path from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { test as defaultTest, type ExpectStatic } from 'vitest'
+import os from 'node:os'
 
 const REPO_ROOT = path.join(__dirname, '..')
 const PUBLIC_PACKAGES = (await fs.readdir(path.join(REPO_ROOT, 'dist'))).map((name) =>
@@ -653,5 +654,33 @@ async function gracefullyRemove(dir: string) {
   // Skip removing the directory in CI because it can stall on Windows
   if (!process.env.CI) {
     await fs.rm(dir, { recursive: true, force: true })
+  }
+}
+
+export function getStandaloneBinary() {
+  const platform = os.platform()
+  const arch = os.arch()
+  const isMusl = process.env.RUNNER_NAME === 'Linux MUSL' || process.env.CONTAINER_NAME?.includes('alpine') || false
+  
+  console.log('Debug getStandaloneBinary:', {
+    platform,
+    arch,
+    RUNNER_NAME: process.env.RUNNER_NAME,
+    CONTAINER_NAME: process.env.CONTAINER_NAME,
+    isMusl
+  })
+
+  switch (platform) {
+    case 'win32':
+      return 'tailwindcss-windows-x64.exe'
+    case 'darwin':
+      return arch === 'x64' ? 'tailwindcss-macos-x64' : 'tailwindcss-macos-arm64'
+    case 'linux':
+      const linuxArch = arch === 'x64' ? 'x64' : 'arm64'
+      return isMusl 
+        ? `tailwindcss-linux-${linuxArch}-musl`
+        : `tailwindcss-linux-${linuxArch}`
+    default:
+      throw new Error(`Unsupported platform: ${platform} ${arch}`)
   }
 }

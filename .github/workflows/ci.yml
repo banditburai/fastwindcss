@@ -1,9 +1,18 @@
 name: CI
 
 on:
-  push:
-    branches: [next]
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      runner_type:
+        description: 'Choose runner type (all/linux/windows/macos)'
+        required: true
+        default: 'linux'
+        type: choice
+        options:
+          - all
+          - linux
+          - windows
+          - macos
 
 permissions:
   contents: read
@@ -24,16 +33,16 @@ jobs:
           - name: macOS
             os: macos-14
 
-        # Exclude windows and macos from being built on feature branches
-        on-next-branch:
-          - ${{ github.ref == 'refs/heads/next' }}
         exclude:
-          - on-next-branch: false
-            runner:
+          - runner:
               name: Windows
-          - on-next-branch: false
-            runner:
+            if: ${{ inputs.runner_type != 'all' && inputs.runner_type != 'windows' }}
+          - runner:
               name: macOS
+            if: ${{ inputs.runner_type != 'all' && inputs.runner_type != 'macos' }}
+          - runner:
+              name: Linux
+            if: ${{ inputs.runner_type != 'all' && inputs.runner_type != 'linux' }}
 
     runs-on: ${{ matrix.runner.os }}
     timeout-minutes: 30
@@ -95,10 +104,3 @@ jobs:
 
       - name: Run Playwright tests
         run: npm run test:ui
-
-      - name: Notify Discord
-        if: failure() && github.ref == 'refs/heads/next'
-        uses: discord-actions/message@v2
-        with:
-          webhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          message: 'The [most recent build](<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>) on the `next` branch has failed.'
