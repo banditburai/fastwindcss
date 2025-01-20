@@ -13,6 +13,7 @@
   "homepage": "https://tailwindcss.com",
   "scripts": {
     "lint": "tsc --noEmit",
+    "setup-plugins": "bun ./scripts/setup-plugins.ts",
     "build": "bun ./scripts/build.ts"
   },
   "bin": {
