@@ -198,3 +198,43 @@ test(
     ])
   },
 )
+
+test(
+  'builds the daisyUI plugin utilities',
+  {
+    fs: {
+      'package.json': json`
+        {
+          "dependencies": {
+            "daisyui": "^5.0.0-beta.1",
+            "tailwindcss": "workspace:^",
+            "@tailwindcss/cli": "workspace:^"
+          }
+        }
+      `,
+      'index.html': html`
+        <button class="btn btn-primary">Button</button>
+        <div class="card">
+          <div class="card-body">
+            <h2 class="card-title">Card title!</h2>
+          </div>
+        </div>
+      `,
+      'src/index.css': css`
+        @import 'tailwindcss';
+        @plugin 'daisyui';
+      `,
+    },
+  },
+  async ({ fs, exec }) => {
+    await exec('pnpm tailwindcss --input src/index.css --output dist/out.css')
+
+    await fs.expectFileToContain('dist/out.css', [
+      candidate`btn`,
+      candidate`btn-primary`,
+      candidate`card`,
+      candidate`card-body`,
+      candidate`card-title`,
+    ])
+  },
+)
