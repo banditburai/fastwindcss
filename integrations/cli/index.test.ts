@@ -2,20 +2,9 @@ import dedent from 'dedent'
 import os from 'node:os'
 import path from 'node:path'
 import { describe } from 'vitest'
-import { candidate, css, html, js, json, test, ts, yaml } from '../utils'
+import { candidate, css, html, js, json, test, ts, yaml, getStandaloneBinary } from '../utils'
 
-const STANDALONE_BINARY = (() => {
-  switch (os.platform()) {
-    case 'win32':
-      return 'tailwindcss-windows-x64.exe'
-    case 'darwin':
-      return os.arch() === 'x64' ? 'tailwindcss-macos-x64' : 'tailwindcss-macos-arm64'
-    case 'linux':
-      return os.arch() === 'x64' ? 'tailwindcss-linux-x64' : 'tailwindcss-linux-arm64'
-    default:
-      throw new Error(`Unsupported platform: ${os.platform()} ${os.arch()}`)
-  }
-})()
+const STANDALONE_BINARY = getStandaloneBinary()
 
 describe.each([
   ['CLI', 'pnpm tailwindcss'],
