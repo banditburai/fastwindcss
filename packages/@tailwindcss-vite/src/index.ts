@@ -8,6 +8,9 @@ import type { Plugin, ResolvedConfig, Rollup, Update, ViteDevServer } from 'vite
 
 const DEBUG = env.DEBUG
 const SPECIAL_QUERY_RE = /[?&](raw|url)\b/
+const INLINE_STYLE_ID_RE = /[?&]index\=\d+\.css$/
+
+const IGNORED_DEPENDENCIES = ['tailwind-merge']
 
 export default function tailwindcss(): Plugin[] {
   let servers: ViteDevServer[] = []
@@ -61,7 +64,19 @@ export default function tailwindcss(): Plugin[] {
     )
   })
 
-  function scanFile(id: string, content: string, extension: string, isSSR: boolean) {
+  function scanFile(id: string, content: string, extension: string) {
+    for (let dependency of IGNORED_DEPENDENCIES) {
+      // We validated that Vite IDs always use posix style path separators, even on Windows.
+      // In dev build, Vite precompiles dependencies
+      if (id.includes(`.vite/deps/${dependency}.js`)) {
+        return
+      }
+      // In prod builds, use the node_modules path
+      if (id.includes(`/node_modules/${dependency}/`)) {
+        return
+      }
+    }
+
     let updated = false
     for (let candidate of moduleGraphScanner.scanFiles([{ content, extension }])) {
       updated = true
@@ -69,26 +84,16 @@ export default function tailwindcss(): Plugin[] {
     }
 
     if (updated) {
-      invalidateAllRoots(isSSR)
+      invalidateAllRoots()
     }
   }
 
-  function invalidateAllRoots(isSSR: boolean) {
+  function invalidateAllRoots() {
     for (let server of servers) {
       let updates: Update[] = []
-      for (let [id, root] of roots.entries()) {
+      for (let [id] of roots.entries()) {
         let module = server.moduleGraph.getModuleById(id)
-        if (!module) {
-          // Note: Removing this during SSR is not safe and will produce
-          // inconsistent results based on the timing of the removal and
-          // the order / timing of transforms.
-          if (!isSSR) {
-            // It is safe to remove the item here since we're iterating on a copy
-            // of the keys.
-            roots.delete(id)
-          }
-          continue
-        }
+        if (!module) continue
 
         roots.get(id).requiresRebuild = false
         server.moduleGraph.invalidateModule(module)
@@ -99,7 +104,6 @@ export default function tailwindcss(): Plugin[] {
           timestamp: Date.now(),
         })
       }
-
       if (updates.length > 0) {
         server.hot.send({ type: 'update', updates })
       }
@@ -196,12 +200,15 @@ export default function tailwindcss(): Plugin[] {
 
       // Scan all non-CSS files for candidates
       transformIndexHtml(html, { path }) {
-        scanFile(path, html, 'html', isSSR)
+        // SolidStart emits HTML chunks with an undefined path and the html content of `\`.
+        if (!path) return
+
+        scanFile(path, html, 'html')
       },
       transform(src, id, options) {
         let extension = getExtension(id)
         if (isPotentialCssRootFile(id)) return
-        scanFile(id, src, extension, options?.ssr ?? false)
+        scanFile(id, src, extension)
       },
     },
 
@@ -306,7 +313,7 @@ function isPotentialCssRootFile(id: string) {
   if (id.includes('/.vite/')) return
   let extension = getExtension(id)
   let isCssFile =
-    (extension === 'css' || id.includes('&lang.css')) &&
+    (extension === 'css' || id.includes('&lang.css') || id.match(INLINE_STYLE_ID_RE)) &&
     // Don't intercept special static asset resources
     !SPECIAL_QUERY_RE.test(id)
 
