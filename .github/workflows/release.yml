@@ -111,7 +111,6 @@ jobs:
         if: ${{ matrix.download }}
         run: |
           rustup default stable
-
       - name: Setup rust target
         run: rustup target add ${{ matrix.target }}
 
@@ -248,19 +247,10 @@ jobs:
           cp bindings-armv7-unknown-linux-gnueabihf/* ./npm/linux-arm-gnueabihf/
           cp bindings-x86_64-unknown-linux-gnu/* ./npm/linux-x64-gnu/
           cp bindings-x86_64-unknown-linux-musl/* ./npm/linux-x64-musl/
-          cp bindings-x86_64-unknown-freebsd/* ./npm/freebsd-x64/
-
-<<<<<<< HEAD
-      - name: Build Tailwind CSS
-        run: pnpm run build
-        env:
-          FEATURES_ENV: stable
-=======
       # First setup plugins
       - name: Setup TailwindCSS plugins
         run: pnpm run setup-plugins
         working-directory: packages/@tailwindcss-standalone
->>>>>>> 16618ff8 (:sparkles: Initial commit with daisyui)
 
       # Then build TailwindCSS
       - name: Build TailwindCSS
@@ -272,16 +262,6 @@ jobs:
       - name: Upload Standalone Artifacts
         uses: actions/upload-artifact@v4
         with:
-<<<<<<< HEAD
-          github-token: ${{ secrets.TAILWIND_PLAY_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: 'tailwindlabs',
-              repo: 'play.tailwindcss.com',
-              ref: 'master',
-              workflow_id: 'upgrade-tailwindcss.yml'
-            })
-=======
           name: tailwindcss-standalone
           path: packages/@tailwindcss-standalone/dist/
       
@@ -299,4 +279,3 @@ jobs:
             packages/@tailwindcss-standalone/dist/tailwindcss-macos-arm64
             packages/@tailwindcss-standalone/dist/tailwindcss-macos-x64
             packages/@tailwindcss-standalone/dist/tailwindcss-windows-x64.exe
->>>>>>> 16618ff8 (:sparkles: Initial commit with daisyui)
