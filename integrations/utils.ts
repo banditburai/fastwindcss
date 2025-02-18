@@ -6,11 +6,7 @@ import { platform, tmpdir } from 'node:os'
 import path from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { test as defaultTest, type ExpectStatic } from 'vitest'
-<<<<<<< HEAD
 import { escape } from '../packages/tailwindcss/src/utils/escape'
-=======
-import os from 'node:os'
->>>>>>> fbb7e46f (:sparkles: Initial commit with daisyui)
 
 const REPO_ROOT = path.join(__dirname, '..')
 const PUBLIC_PACKAGES = (await fs.readdir(path.join(REPO_ROOT, 'dist'))).map((name) =>
