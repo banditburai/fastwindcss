@@ -7,6 +7,7 @@ import path from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { test as defaultTest, type ExpectStatic } from 'vitest'
 import { escape } from '../packages/tailwindcss/src/utils/escape'
+import os from 'node:os'
 
 const REPO_ROOT = path.join(__dirname, '..')
 const PUBLIC_PACKAGES = (await fs.readdir(path.join(REPO_ROOT, 'dist'))).map((name) =>
